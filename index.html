@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <!-- เพิ่ม Canvas Confetti สำหรับเอฟเฟกต์พลุฉลองตอนผ่านด่าน -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <style>
@@ -22,7 +21,6 @@
     }
     .game-font { font-family: 'Mali', cursive; }
     
-    /* อนิเมชันบัตรคำศัพท์ร่วง */
     .falling-word {
       position: absolute;
       left: 50%;
@@ -31,13 +29,11 @@
       will-change: top;
       animation: swing 3s ease-in-out infinite alternate;
     }
-    
     @keyframes swing {
       0% { margin-left: -15px; transform: translateX(-50%) rotate(-3deg); }
       100% { margin-left: 15px; transform: translateX(-50%) rotate(3deg); }
     }
 
-    /* อนิเมชันคำศัพท์ระเบิดเมื่ออ่านถูก */
     .word-explode {
       animation: popOut 0.3s forwards;
     }
@@ -54,7 +50,6 @@
       box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
     }
     
-    /* หลอดพลัง */
     #progress-tracker-container {
       position: relative;
       height: 100%;
@@ -79,6 +74,15 @@
       z-index: 10;
       box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     }
+    
+    /* สไตล์สำหรับแกนเลื่อน Leaderboard */
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col justify-between">
@@ -88,33 +92,45 @@
     const BACKEND_URL = "https://script.google.com/macros/s/AKfycbzaTwJ9LJfz2so05TDlPcUXAZDTHWMinKIsQzZNeLdG-xDnL4VhC888C85-FzyA4pBUMA/exec";
   </script>
 
-  <!-- Main Content Body -->
   <main class="flex-grow w-full h-screen flex flex-col items-center justify-center p-2 relative">
 
     <!-- VIEW 1: หน้าหลัก / Landing Page -->
-    <section id="view-home" class="view-section flex flex-col items-center justify-center space-y-6 animate-fadeIn w-full max-w-lg glass-panel p-8 rounded-3xl">
+    <section id="view-home" class="view-section flex flex-col items-center justify-center space-y-6 animate-fadeIn w-full max-w-lg glass-panel p-6 md:p-8 rounded-3xl">
       <div class="text-center space-y-2">
-        <div class="bg-indigo-500 text-white w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-200 transform rotate-3">
-          <i class="fa-solid fa-gamepad text-4xl"></i>
+        <div class="bg-indigo-500 text-white w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-200 transform rotate-3">
+          <i class="fa-solid fa-gamepad text-3xl md:text-4xl"></i>
         </div>
         <h2 class="text-3xl md:text-4xl font-black text-indigo-900 game-font text-balance">
           เกมผจญภัย<br>การอ่านออกเสียง
         </h2>
-        <p class="text-slate-500 font-medium pt-2">ด่าน 1 ถึง 10 ยิ่งด่านสูง บัตรคำยิ่งร่วงเร็ว!</p>
       </div>
 
       <button onclick="startScan()" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-extrabold py-4 px-6 rounded-2xl transition transform hover:scale-105 active:scale-95 text-lg shadow-xl flex items-center justify-center space-x-3 game-font">
         <i class="fa-solid fa-qrcode text-2xl"></i>
-        <span>สแกนบัตรคิวอาร์เพื่อเข้าเกม</span>
+        <span>สแกนบัตรเข้าเกม</span>
       </button>
+
+      <!-- ส่วน Leaderboard (Hall of Fame) -->
+      <div class="w-full pt-4 border-t border-slate-200/60">
+        <div class="flex items-center space-x-2 mb-3 justify-center">
+          <i class="fa-solid fa-trophy text-yellow-500"></i>
+          <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wide">ทำเนียบผู้พิทักษ์คำศัพท์สูงสุด</h3>
+        </div>
+        <div id="leaderboard-container" class="flex overflow-x-auto gap-3 pb-2 hide-scrollbar snap-x">
+          <p class="text-xs text-slate-400 text-center w-full">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
     </section>
 
     <!-- VIEW 2: หน้าสแกนคิวอาร์ -->
-    <section id="view-scan" class="view-section hidden w-full max-w-md glass-panel p-6 rounded-3xl animate-fadeIn flex flex-col items-center">
-      <div class="w-full flex items-center justify-between border-b pb-4 mb-4">
-        <button onclick="showView('home')" class="text-slate-400 hover:text-indigo-600 text-2xl"><i class="fa-solid fa-circle-arrow-left"></i></button>
+    <section id="view-scan" class="view-section hidden w-full max-w-md glass-panel p-6 rounded-3xl animate-fadeIn flex flex-col items-center relative">
+      <!-- ปุ่มปิด (X) -->
+      <button onclick="cancelAndGoHome()" class="absolute top-4 right-4 text-slate-400 hover:text-rose-500 text-3xl transition z-10">
+        <i class="fa-solid fa-circle-xmark"></i>
+      </button>
+
+      <div class="w-full flex items-center justify-center border-b pb-4 mb-4">
         <h2 class="text-xl font-bold text-slate-800 game-font">สแกนบัตรนักเรียน</h2>
-        <div class="w-8"></div>
       </div>
       
       <div class="w-full aspect-square overflow-hidden rounded-3xl bg-black border-4 border-indigo-400 relative shadow-inner mb-4">
@@ -124,13 +140,16 @@
     </section>
 
     <!-- VIEW 3: หน้าโปรไฟล์ผู้เล่น (ถ่ายรูปเตรียมตัว) -->
-    <section id="view-profile" class="view-section hidden w-full max-w-md glass-panel p-8 rounded-3xl animate-fadeIn flex flex-col items-center text-center space-y-6">
+    <section id="view-profile" class="view-section hidden w-full max-w-md glass-panel p-8 rounded-3xl animate-fadeIn flex flex-col items-center text-center space-y-6 relative">
+      <!-- ปุ่มปิด (X) -->
+      <button onclick="cancelAndGoHome()" class="absolute top-4 right-4 text-slate-400 hover:text-rose-500 text-3xl transition z-10">
+        <i class="fa-solid fa-circle-xmark"></i>
+      </button>
+
       <h2 class="text-2xl font-black text-indigo-900 game-font">ยินดีต้อนรับผู้กล้า!</h2>
       
       <div class="relative w-32 h-32 mx-auto">
-        <!-- กล้องแอบถ่ายโปรไฟล์ตรงนี้ -->
         <video id="profile-video" class="w-full h-full object-cover rounded-full border-4 border-indigo-400 shadow-lg hidden" autoplay playsinline muted></video>
-        <!-- กรอบรูปถ้ากล้องใช้งานไม่ได้ -->
         <div id="profile-fallback" class="w-full h-full rounded-full border-4 border-indigo-400 flex items-center justify-center bg-indigo-50 text-indigo-300 text-5xl">
           <i class="fa-solid fa-user-astronaut"></i>
         </div>
@@ -150,7 +169,6 @@
 
     <!-- VIEW 4: หน้า GAME PLAY -->
     <section id="view-game" class="view-section hidden w-full max-w-4xl h-[90vh] glass-panel rounded-3xl animate-fadeIn flex flex-col overflow-hidden relative">
-      
       <!-- Top Bar: Status -->
       <div class="w-full bg-indigo-900 text-white p-3 md:p-4 flex justify-between items-center z-20 shadow-md">
         <div class="flex flex-col">
@@ -160,7 +178,7 @@
         
         <div class="flex flex-col items-center bg-indigo-800/50 px-4 py-1.5 rounded-xl border border-indigo-700">
           <span class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider"><i class="fa-solid fa-clock mr-1"></i>เวลา</span>
-          <span id="ui-timer" class="text-2xl md:text-3xl font-black game-font leading-none">2:00</span>
+          <span id="ui-timer" class="text-2xl md:text-3xl font-black game-font leading-none">1:00</span>
         </div>
 
         <div class="flex flex-col text-right">
@@ -175,14 +193,12 @@
         <!-- Left Sidebar: Progress Bar -->
         <div class="w-16 md:w-24 border-r border-indigo-100 bg-white/60 flex flex-col items-center py-6 justify-between z-10 shadow-lg">
           <span class="text-xs font-bold text-slate-400">100%</span>
-          
           <div class="flex-grow my-2 relative">
             <div id="progress-tracker-container">
               <div id="progress-fill" style="height: 0%;"></div>
               <img id="player-avatar-tracker" src="" class="w-10 h-10 md:w-14 md:h-14 rounded-full border-4 border-white object-cover hidden" style="bottom: 0%;">
             </div>
           </div>
-
           <span class="text-xs font-bold text-slate-400">0%</span>
           <div class="mt-4 text-center">
             <span class="block text-[10px] text-slate-400 font-bold">ปัจจุบัน</span>
@@ -192,9 +208,6 @@
 
         <!-- Center: Falling Words Arena -->
         <div id="game-arena" class="flex-grow relative overflow-hidden">
-          <!-- บัตรคำจะถูกสร้างด้วย JS มาใส่ในนี้ -->
-          
-          <!-- ไมค์สถานะ -->
           <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center bg-white/80 px-6 py-2 rounded-3xl backdrop-blur border border-indigo-100 shadow-xl">
             <div class="flex items-center space-x-3">
               <div id="mic-indicator" class="w-4 h-4 rounded-full bg-rose-500 animate-pulse"></div>
@@ -207,9 +220,7 @@
 
     <!-- VIEW 5: สรุปผลด่าน (Level Clear / Game Over) -->
     <section id="view-result" class="view-section hidden w-full max-w-md glass-panel p-8 rounded-3xl animate-fadeIn flex flex-col items-center text-center space-y-6">
-      <div id="result-icon-container" class="text-6xl mt-4 mb-2">
-        <!-- JS Insert -->
-      </div>
+      <div id="result-icon-container" class="text-6xl mt-4 mb-2"></div>
       
       <div>
         <h2 id="result-title" class="text-4xl font-black game-font text-indigo-900">ผ่านด่าน!</h2>
@@ -248,6 +259,7 @@
     // ==========================================
     let currentStudent = null;
     let masterWords = []; 
+    let recentSpawnedWords = []; // ตะกร้าเก็บคำศัพท์ที่เพิ่งออกไป (ป้องกันคำซ้ำ)
     let html5QrcodeScanner = null;
     let cameraStream = null;
     let capturedPhotoBase64 = null;
@@ -264,11 +276,15 @@
     let timeRemaining = 0;
     
     // Score & Progress
-    let currentPercent = 0; // Starts at 0, max 100
+    let currentPercent = 0; 
     let targetPercent = 50; 
-    let wordsSpawnedCount = 0;
-    let activeWordsOnScreen = []; // เก็บอ็อบเจ็กต์ของ DOM บัตรคำที่กำลังร่วง
-    let levelScoreHistory = []; // เก็บสถิติรายด่าน
+    let activeWordsOnScreen = []; 
+    let levelScoreHistory = []; 
+
+    // โหลด Leaderboard ทันทีเมื่อเปิดเว็บ
+    window.addEventListener('load', () => {
+      fetchLeaderboard();
+    });
 
     // เสียงประกอบ
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -297,14 +313,37 @@
         osc.start(); osc.stop(audioCtx.currentTime + 0.2);
       } else if (type === 'win') {
         osc.type = 'square';
-        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
-        osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
-        osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); // C6
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); 
+        osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); 
+        osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); 
         gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
         gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
         osc.start(); osc.stop(audioCtx.currentTime + 0.6);
       }
+    }
+
+    // ==========================================
+    // จัดการการปิดกล้องและการยกเลิก
+    // ==========================================
+    function stopAllCameras() {
+      // ปิด QR Scanner
+      if (html5QrcodeScanner) {
+        try { html5QrcodeScanner.stop().catch(e => console.warn(e)); } catch(e){}
+        html5QrcodeScanner = null;
+      }
+      // ปิดสตรีมกล้องโปรไฟล์
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      const video = document.getElementById('profile-video');
+      if (video) video.srcObject = null;
+    }
+
+    function cancelAndGoHome() {
+      stopAllCameras();
+      showView('home');
     }
 
     // ==========================================
@@ -313,8 +352,8 @@
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SpeechRecognition();
-      recognition.continuous = true; // เปิดไมค์ฟังยาวๆ
-      recognition.interimResults = true; // รับค่าผลลัพธ์ระหว่างพูดเพื่อให้เกมตอบสนองไว
+      recognition.continuous = true; 
+      recognition.interimResults = true; 
       recognition.lang = 'th-TH';
 
       recognition.onstart = function() {
@@ -324,13 +363,11 @@
       };
 
       recognition.onerror = function(e) {
-        console.warn('Speech Error:', e.error);
         if(e.error !== 'no-speech') isListening = false;
       };
 
       recognition.onend = function() {
         isListening = false;
-        // หากยังอยู่ในช่วงเล่นเกม ให้สั่งเปิดไมค์ใหม่ทันที (Auto-restart)
         if (timeRemaining > 0 && document.getElementById('view-game').classList.contains('hidden') === false) {
           try { recognition.start(); } catch(e){}
         } else {
@@ -340,25 +377,18 @@
       };
 
       recognition.onresult = function(event) {
-        // นำก้อนข้อความล่าสุดที่จับได้มาประมวลผล
         let transcript = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
         }
-        
         const cleanTranscript = transcript.trim();
         if(cleanTranscript) {
           document.getElementById('speech-transcript').textContent = cleanTranscript;
           checkSpokenWords(cleanTranscript);
         }
       };
-    } else {
-      Swal.fire('อุปกรณ์ไม่รองรับ', 'เบราว์เซอร์นี้ไม่รองรับระบบสั่งการด้วยเสียง กรุณาใช้ Google Chrome', 'error');
     }
 
-    // ==========================================
-    // อัลกอริทึม Phonetic (ของเดิมของคุณ)
-    // ==========================================
     function normalizeThaiPhonetic(word) {
       if (!word) return "";
       let clean = word.trim().replace(/[\s\-\_\.\,\?]/g, "").replace(/.[์]/g, "");
@@ -395,7 +425,7 @@
       const target = normalizeThaiPhonetic(targetText);
       const output = normalizeThaiPhonetic(spokenText);
       if (target === output) return 1.0;
-      if (output.includes(target)) return 0.9; // ผู้พูดพูดเป็นประโยคยาวแต่มีคำนี้อยู่
+      if (output.includes(target)) return 0.9; 
       
       const track = Array(output.length + 1).fill(null).map(() => Array(target.length + 1).fill(null));
       for (let i = 0; i <= target.length; i++) track[0][i] = i;
@@ -429,6 +459,43 @@
       document.getElementById(`view-${viewId}`).classList.remove('hidden');
     }
 
+    // โหลด Leaderboard
+    async function fetchLeaderboard() {
+      try {
+        const res = await fetch(`${BACKEND_URL}?action=getLeaderboard`);
+        const topScorers = await res.json();
+        
+        const container = document.getElementById('leaderboard-container');
+        container.innerHTML = '';
+        
+        let hasData = false;
+        for (let grade = 1; grade <= 6; grade++) {
+          if (topScorers[grade]) {
+            hasData = true;
+            const s = topScorers[grade];
+            const nameArr = s.name.split(' ');
+            const shortName = nameArr[0]; // เอาแค่ชื่อหน้า
+
+            const card = document.createElement('div');
+            card.className = "min-w-[100px] flex-shrink-0 bg-white border border-indigo-100 rounded-xl p-2 text-center shadow-sm snap-center";
+            card.innerHTML = `
+              <span class="block text-[10px] font-bold text-indigo-400 bg-indigo-50 rounded-full mb-1">ป.${grade}</span>
+              <img src="${s.photoUrl || 'https://via.placeholder.com/150/e0e7ff/4f46e5?text=P'}" class="w-10 h-10 mx-auto rounded-full object-cover border-2 border-yellow-400 mb-1">
+              <p class="text-[10px] font-black text-slate-700 truncate w-full" title="${s.name}">${shortName}</p>
+              <p class="text-xs font-bold text-emerald-500">${s.percent}%</p>
+            `;
+            container.appendChild(card);
+          }
+        }
+        
+        if (!hasData) {
+          container.innerHTML = '<p class="text-xs text-slate-400 text-center w-full">ยังไม่มีสถิติผู้เล่นในระบบ</p>';
+        }
+      } catch (e) {
+        document.getElementById('leaderboard-container').innerHTML = '<p class="text-xs text-rose-400 text-center w-full">ไม่สามารถเชื่อมต่อฐานข้อมูลได้</p>';
+      }
+    }
+
     // ==========================================
     // Login & Profile (QR + Camera)
     // ==========================================
@@ -438,7 +505,7 @@
         html5QrcodeScanner = new Html5Qrcode("qr-reader-element");
         html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
           (decodedText) => {
-            html5QrcodeScanner.stop();
+            stopAllCameras(); // ปิดกล้องทันทีหลังแสกนติด
             fetchStudentData(decodedText.trim());
           }, 
           () => {}
@@ -455,11 +522,9 @@
         const student = await fetch(`${BACKEND_URL}?action=getStudentInfo&studentId=${studentId}`).then(res=>res.json());
         if (student) {
           currentStudent = student;
-          
-          // โหลดคำศัพท์มารอไว้เลย
           const words = await fetch(`${BACKEND_URL}?action=getWordsForGrade&grade=${student.grade}`).then(res=>res.json());
           if(words && words.length > 0) masterWords = words;
-          else masterWords = [{word: "ทดสอบ"}, {word: "เวลา"}, {word: "สู้ๆ"}]; // กันเหนียว
+          else masterWords = [{word: "ทดสอบ"}, {word: "เวลา"}, {word: "สู้ๆ"}]; 
 
           Swal.close();
           setupProfileScreen();
@@ -479,7 +544,6 @@
       document.getElementById('player-grade-room').textContent = `ป.${currentStudent.grade} ห้อง ${currentStudent.room}`;
       showView('profile');
       
-      // เปิดกล้องหน้าเพื่อเตรียมถ่ายรูปโปรไฟล์
       const video = document.getElementById('profile-video');
       const fallback = document.getElementById('profile-fallback');
       
@@ -497,23 +561,20 @@
     }
 
     function takeSnapshotAndStart() {
-      // แอบถ่ายรูป
       if (cameraStream) {
         const video = document.getElementById('profile-video');
         const canvas = document.createElement('canvas');
         canvas.width = 300; canvas.height = 300;
         const ctx = canvas.getContext('2d');
-        // crop center
         const size = Math.min(video.videoWidth, video.videoHeight);
         const x = (video.videoWidth - size) / 2;
         const y = (video.videoHeight - size) / 2;
         ctx.drawImage(video, x, y, size, size, 0, 0, 300, 300);
         capturedPhotoBase64 = canvas.toDataURL('image/jpeg', 0.8);
         
-        // ปิดกล้อง
-        cameraStream.getTracks().forEach(t => t.stop());
+        // ตัดกล้องทิ้งถาวร
+        stopAllCameras();
         
-        // นำรูปไปใส่ใน avatar tracker ของเกม
         const avatar = document.getElementById('player-avatar-tracker');
         avatar.src = capturedPhotoBase64;
         avatar.classList.remove('hidden');
@@ -528,13 +589,13 @@
     // Game Core Logic
     // ==========================================
     function getLevelConfig(lv) {
-      // ปรับจูนความยากตามด่าน (1-10)
+      // ปรับจูนความยากตามด่าน 1 นาที (60 วินาที)
       const targetPercents = [50, 55, 60, 65, 70, 75, 80, 85, 90, 95];
-      const fallSeconds =    [12, 11, 10, 9, 8, 7, 6, 5, 4.5, 4]; // ร่วงเร็วขึ้น
-      const spawnMs =        [4000, 3500, 3200, 2800, 2500, 2200, 1900, 1600, 1300, 1000]; // ออกมาถี่ขึ้น
+      const fallSeconds =    [10, 9, 8, 7, 6, 5, 4.5, 4, 3.5, 3]; // เวลาที่ร่วงลงมา (วินาที)
+      const spawnMs =        [2500, 2300, 2100, 1900, 1700, 1500, 1300, 1100, 900, 700]; // อัตราการเกิด
       
       return {
-        timeLimit: 120, // 120 วินาทีคงที่
+        timeLimit: 60, // เปลี่ยนเป็น 1 นาที
         target: targetPercents[lv-1],
         fallSpeed: fallSeconds[lv-1],
         spawnRate: spawnMs[lv-1]
@@ -551,10 +612,9 @@
       timeRemaining = config.timeLimit;
       targetPercent = config.target;
       currentPercent = 0;
-      wordsSpawnedCount = 0;
       activeWordsOnScreen = [];
+      recentSpawnedWords = []; // ล้างคูลดาวน์กันคำซ้ำทุกเริ่มด่านใหม่
       
-      // อัปเดต UI
       document.getElementById('ui-level').textContent = `LV ${currentLevel}`;
       document.getElementById('ui-target-percent').textContent = targetPercent;
       document.getElementById('game-arena').innerHTML = '<div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center bg-white/90 px-6 py-2 rounded-3xl backdrop-blur shadow-xl border border-indigo-100"><div class="flex items-center space-x-3"><div id="mic-indicator" class="w-4 h-4 rounded-full bg-rose-500 animate-pulse"></div><p id="speech-transcript" class="text-sm md:text-lg font-bold text-indigo-900 game-font">เตรียมพร้อม...</p></div></div>';
@@ -563,10 +623,9 @@
 
       showView('game');
       
-      // นับถอยหลังเริ่มเกม 3 วิ
       Swal.fire({
         title: `ด่านที่ ${currentLevel}`,
-        text: `เป้าหมาย: สะสมคะแนนให้ถึง ${targetPercent}%`,
+        text: `เป้าหมาย: สะสมคะแนนให้ถึง ${targetPercent}% ภายใน 1 นาที`,
         timer: 3000,
         timerProgressBar: true,
         showConfirmButton: false,
@@ -581,7 +640,6 @@
     function startGameplayLoop(config) {
       try { recognition.start(); } catch(e){}
       
-      // Timer Loop (ทุก 1 วิ)
       gameTimer = setInterval(() => {
         timeRemaining--;
         updateTimerUI();
@@ -591,8 +649,7 @@
         }
       }, 1000);
 
-      // Spawner Loop
-      spawnWordObj(config.fallSpeed); // สร้างคำแรกทันที
+      spawnWordObj(config.fallSpeed); 
       spawnTimer = setInterval(() => {
         spawnWordObj(config.fallSpeed);
       }, config.spawnRate);
@@ -603,7 +660,6 @@
       clearInterval(spawnTimer);
       try { recognition.stop(); } catch(e){}
       
-      // ลบคำทั้งหมดที่ค้างบนจอ
       activeWordsOnScreen.forEach(obj => {
         if(obj.element.parentNode) obj.element.parentNode.removeChild(obj.element);
       });
@@ -611,25 +667,35 @@
     }
 
     // ==========================================
-    // Word Card Mechanics
+    // Word Card Mechanics (with Cooldown)
     // ==========================================
     function spawnWordObj(fallSeconds) {
       if(masterWords.length === 0) return;
       
-      // สุ่มคำศัพท์
-      const randomWord = masterWords[Math.floor(Math.random() * masterWords.length)].word;
-      wordsSpawnedCount++; // นับยอดคำที่ปล่อยออกไป
+      let randomWord = "";
+      let attempts = 0;
+      
+      // สุ่มคำใหม่จนกว่าจะเจอคำที่ไม่ซ้ำกับในคูลดาวน์ (ลิมิตหา 10 รอบป้องกันลูปค้าง)
+      do {
+        randomWord = masterWords[Math.floor(Math.random() * masterWords.length)].word;
+        attempts++;
+      } while (recentSpawnedWords.includes(randomWord) && attempts < 10);
+      
+      // เอาคำที่สุ่มได้ใส่ตะกร้าคูลดาวน์
+      recentSpawnedWords.push(randomWord);
+      // กำหนดความจำคูลดาวน์ (จำประมาณครึ่งหนึ่งของคลังที่มี สูงสุดไม่เกิน 5 คำ)
+      const maxCooldownSize = Math.min(Math.floor(masterWords.length / 2), 5);
+      if (recentSpawnedWords.length > maxCooldownSize) {
+        recentSpawnedWords.shift(); // ลบคำเก่าสุดออก
+      }
 
       const wordEl = document.createElement('div');
       wordEl.className = "falling-word bg-white border-2 border-indigo-400 text-indigo-900 font-extrabold text-2xl md:text-3xl py-3 px-6 rounded-2xl shadow-lg game-font cursor-default";
       wordEl.textContent = randomWord;
       
-      // สุ่มตำแหน่งแกน X (หลีกเลี่ยงขอบจอ)
-      const leftPos = 20 + Math.random() * 60; // 20% to 80%
+      const leftPos = 20 + Math.random() * 60; 
       wordEl.style.left = `${leftPos}%`;
-      wordEl.style.top = `-10%`; // เริ่มจากเหนือจอ
-      
-      // กำหนดความเร็วในการร่วงด้วย CSS Transition
+      wordEl.style.top = `-10%`; 
       wordEl.style.transitionDuration = `${fallSeconds}s`;
 
       document.getElementById('game-arena').appendChild(wordEl);
@@ -641,17 +707,14 @@
       };
       activeWordsOnScreen.push(wordObj);
 
-      // ใช้ setTimeout เพื่อ trigger transition (ต้องรอให้วาดลง DOM ก่อน)
       setTimeout(() => {
         if(wordEl.parentNode) {
-          wordEl.style.top = `110%`; // ให้ร่วงทะลุจอไป
+          wordEl.style.top = `110%`; 
         }
       }, 50);
 
-      // ดักจับเมื่อบัตรคำร่วงสุดขอบจอ (Transition End)
       wordEl.addEventListener('transitionend', (e) => {
         if(e.propertyName === 'top') {
-          // ถ้าร่วงตกพื้นแปลว่าไม่ตอบ หรือตอบไม่ทัน
           if(wordEl.parentNode) {
             wordEl.parentNode.removeChild(wordEl);
             removeWordFromActive(wordObj);
@@ -665,54 +728,34 @@
       activeWordsOnScreen = activeWordsOnScreen.filter(w => w !== wordObj);
     }
 
-    // ==========================================
-    // Speech Checking & Scoring
-    // ==========================================
     function checkSpokenWords(spokenTranscript) {
-      let matched = false;
-      
-      // แยกคำพูดที่เข้ามา (กรณีพูดติดๆ กัน) ไปเทียบกับบัตรคำที่ลอยอยู่
-      // เนื่องจากเราใช้ phoneticSimilarity เราจะเช็คเทียบกันทีละใบ
-      
       for(let i=0; i<activeWordsOnScreen.length; i++) {
         const wObj = activeWordsOnScreen[i];
         const sim = getPhoneticSimilarity(wObj.text, spokenTranscript);
         
         if (sim >= 0.70) {
-          // อ่านถูก!
-          matched = true;
           handleWordCorrect(wObj);
-          break; // ระเบิดทีละคำพอ
+          break; 
         }
       }
-      
-      // ถ้าไม่มีการ match เลย อาจจะหักคะแนน หรือปล่อยผ่าน (ในเกมแนะนำให้หักถ้าพูดผิด แต่ถ้าปล่อยผ่านจะเซฟเด็กกว่า)
-      // เลือกแบบ: ไม่หักคะแนนถ้าพูดผิด รอให้คำร่วงตกพื้นค่อยหัก (เพื่อความสนุก ไม่กดดันเกินไป)
     }
 
     function handleWordCorrect(wObj) {
       playSound('correct');
-      
-      // หยุดแอนิเมชันร่วง และแสดงเอฟเฟกต์ระเบิด
       const el = wObj.element;
-      el.style.transition = 'none'; // หยุดร่วง
+      el.style.transition = 'none'; 
       el.classList.add('word-explode', 'bg-emerald-400', 'text-white', 'border-emerald-500');
       
       removeWordFromActive(wObj);
       
-      // ลบออกจาก DOM หลังเอฟเฟกต์จบ
       setTimeout(() => {
         if(el.parentNode) el.parentNode.removeChild(el);
       }, 300);
 
-      // คำนวณ % : สมมติได้ใบละ +5% (ปรับให้เด็กเล่นง่ายขึ้น) หรือใช้สัดส่วน
-      // เกมต้องการให้ได้ % จากคำศัพท์ในด่านนั้น 
-      // เพื่อให้เล่นสนุก กำหนดให้ ถูก 1 คำ = +3% ถึง 5%
       currentPercent += 5; 
       if(currentPercent > 100) currentPercent = 100;
       updateProgressUI();
       
-      // เช็คว่าชนะทันทีไหมถ้าร้อยเต็ม? (เพิ่มกิมมิค ถ้าถึง 100% ก่อนหมดเวลาถือว่าชนะโบนัส)
       if(currentPercent >= 100) {
         stopGameplay();
         evaluateLevel();
@@ -721,8 +764,7 @@
 
     function handleWordMissed() {
       playSound('drop');
-      // คำตกพื้น หัก 2%
-      currentPercent -= 2;
+      currentPercent -= 2; // หัก 2% ต่อคำตก
       if(currentPercent < 0) currentPercent = 0;
       
       document.getElementById('game-arena').classList.add('bg-rose-100/50');
@@ -748,11 +790,9 @@
     function updateProgressUI() {
       document.getElementById('ui-current-percent').textContent = `${currentPercent}%`;
       
-      // สีของตัวหนังสือ %
       if(currentPercent >= targetPercent) document.getElementById('ui-current-percent').className = "text-lg font-black text-emerald-500";
       else document.getElementById('ui-current-percent').className = "text-lg font-black text-indigo-600";
 
-      // หลอดพลัง และ Avatar
       document.getElementById('progress-fill').style.height = `${currentPercent}%`;
       document.getElementById('player-avatar-tracker').style.bottom = `${currentPercent}%`;
     }
@@ -762,7 +802,6 @@
     // ==========================================
     function evaluateLevel() {
       showView('result');
-      
       const passed = currentPercent >= targetPercent;
       
       document.getElementById('result-target').textContent = `${targetPercent}%`;
@@ -817,21 +856,19 @@
     async function endGameAndSave() {
       Swal.fire({ title: 'กำลังส่งข้อมูลเข้าสู่คลังเวทมนตร์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       
-      // หาค่าเฉลี่ยคะแนนเปอร์เซ็นต์ที่ทำได้
       let totalPerc = 0;
       levelScoreHistory.forEach(r => totalPerc += r.percent);
       const avgPercent = levelScoreHistory.length > 0 ? Math.round(totalPerc / levelScoreHistory.length) : currentPercent;
       
-      // สร้าง format ข้อมูลส่งให้ saveSummaryResult ของ Code.gs ตัวเดิม
       const summary = {
         studentId: currentStudent.studentId,
         name: `${currentStudent.prefix}${currentStudent.firstName} ${currentStudent.lastName}`,
         grade: currentStudent.grade,
         room: currentStudent.room,
-        score: currentLevel, // ใช้ Score เก็บด่านสูงสุดที่ไปถึง
+        score: currentLevel, 
         percent: avgPercent,
         level: avgPercent >= 80 ? 'ดี' : (avgPercent >= 50 ? 'พอใช้' : 'ปรับปรุง'),
-        scoresByType: {} // ข้ามการแยกประเภทไปก่อนสำหรับโหมดเกม
+        scoresByType: {} 
       };
 
       try {
@@ -841,7 +878,7 @@
         });
         
         Swal.fire('บันทึกสำเร็จ!', 'บันทึกสถิติการเล่นของคุณเรียบร้อยแล้ว', 'success').then(() => {
-          window.location.reload(); // รีเฟรชกลับหน้าแรก
+          window.location.reload(); 
         });
       } catch (err) {
         Swal.fire('แจ้งเตือน', 'เล่นจบแล้ว แต่เกิดข้อผิดพลาดในการบันทึกลงฐานข้อมูล', 'warning').then(() => {
